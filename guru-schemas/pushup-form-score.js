@@ -20,24 +20,35 @@ export default class GuruSchema {
       Keypoint.leftShoulder,
       { threshold: 0.1 }
     );
-    this.hipKneeAngles = this.reps.map((rep) => {
-      return MovementAnalyzer.angleBetweenKeypoints(
-        rep.middleFrame,
-        Keypoint.rightKnee,
-        Keypoint.rightHip
-      );
-    });
 
-    this.elbowShoulderAngle = this.reps.map((rep) => {
+    const repHitsDepth = (rep) => {
       return MovementAnalyzer.angleBetweenKeypoints(
         rep.middleFrame,
         Keypoint.leftElbow,
         Keypoint.leftShoulder
-      );
-    });
+      ) < 0;
+    };
+
+    this.repsAnalysis = this.reps.map((rep) => ({
+      hitsDepth: repHitsDepth(rep),
+      locksOut: true
+    }));
+    
 
     return this.outputs();
   }
+
+  // const hitsDepth = (person) => {
+  //   const elbowLocation = person.keypoints[Keypoint.leftElbow];
+  //   const shoulderLocation = person.keypoints[Keypoint.leftShoulder];
+  //   const elbowShoulderAngle = MovementAnalyzer.angleBetweenKeypoints(
+  //     person,
+  //     Keypoint.leftElbow,
+  //     Keypoint.leftShoulder
+  //   );
+
+  //   return elbowShoulderAngle > 0;
+  // }
 
   renderFrame(frameCanvas) {
     if (this.personFrames.length > 0) {
@@ -53,8 +64,6 @@ export default class GuruSchema {
           (frameObject) => frameObject.timestamp >= frameCanvas.timestamp
         ) || this.personFrames[this.personFrames.length - 1];
       if (person) {
-        const kneeLocation = person.keypoints[Keypoint.rightKnee];
-        const hipLocation = person.keypoints[Keypoint.rightHip];
         const elbowLocation = person.keypoints[Keypoint.leftElbow];
         const shoulderLocation = person.keypoints[Keypoint.leftShoulder];
         const elbowShoulderAngle = MovementAnalyzer.angleBetweenKeypoints(
@@ -97,10 +106,11 @@ export default class GuruSchema {
               1.0 -
               Math.abs(rep.middleFrame.timestamp - frameCanvas.timestamp) /
                 (rep.endFrame.timestamp - rep.startFrame.timestamp);
-            const hipKneeAngle = Math.round(this.hipKneeAngles[repIndex]);
+
             const elbowShoulderAngle = Math.round(
               this.elbowShoulderAngle[repIndex]
             );
+
             const badForm = elbowShoulderAngle > 2;
 
             const repDescription = badForm ? "Bad rep! Go lower!" : "Good rep!";
@@ -125,8 +135,7 @@ export default class GuruSchema {
 
   async outputs() {
     return {
-      reps: this.reps,
-      hipKneeAngles: this.hipKneeAngles,
+      repsAnalysis: this.repsAnalysis
     };
   }
 }
