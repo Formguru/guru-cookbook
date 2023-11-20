@@ -20,21 +20,31 @@ export default class GuruSchema {
       Keypoint.leftShoulder,
       { threshold: 0.1 }
     );
-    this.hipKneeAngles = this.reps.map((rep) => {
-      return MovementAnalyzer.angleBetweenKeypoints(
-        rep.middleFrame,
-        Keypoint.rightKnee,
-        Keypoint.rightHip
-      );
-    });
 
-    this.elbowShoulderAngle = this.reps.map((rep) => {
-      return MovementAnalyzer.angleBetweenKeypoints(
+    const repDepthDegrees = (rep) => {
+      const angle = MovementAnalyzer.angleBetweenKeypoints(
         rep.middleFrame,
         Keypoint.leftElbow,
         Keypoint.leftShoulder
       );
-    });
+
+      return Number(angle.toFixed(1));
+    };
+
+    const repLockoutDegrees = (rep) => {
+      const angle = MovementAnalyzer.angleBetweenKeypoints(
+        rep.endFrame,
+        Keypoint.leftElbow,
+        Keypoint.leftWrist
+      );
+
+      return Number(angle.toFixed(1));
+    };
+
+    this.repsAnalysis = this.reps.map((rep) => ({
+      repDepthDegrees: repDepthDegrees(rep),
+      repLockOutDegrees: repLockoutDegrees(rep),
+    }));
 
     return this.outputs();
   }
@@ -53,8 +63,6 @@ export default class GuruSchema {
           (frameObject) => frameObject.timestamp >= frameCanvas.timestamp
         ) || this.personFrames[this.personFrames.length - 1];
       if (person) {
-        const kneeLocation = person.keypoints[Keypoint.rightKnee];
-        const hipLocation = person.keypoints[Keypoint.rightHip];
         const elbowLocation = person.keypoints[Keypoint.leftElbow];
         const shoulderLocation = person.keypoints[Keypoint.leftShoulder];
         const elbowShoulderAngle = MovementAnalyzer.angleBetweenKeypoints(
@@ -63,15 +71,16 @@ export default class GuruSchema {
           Keypoint.leftShoulder
         );
 
+        const GOOD_FEEDBACK_COLOR = new Color(93, 236, 201);
+        const BAD_FEEDBACK_COLOR = new Color(232, 92, 92);
+
         frameCanvas.drawTriangle(
           elbowLocation,
           shoulderLocation,
           new Position(elbowLocation.x, shoulderLocation.y),
           {
             backgroundColor:
-              elbowShoulderAngle > 0
-                ? new Color(232, 92, 92)
-                : new Color(93, 236, 201),
+              elbowShoulderAngle > 0 ? BAD_FEEDBACK_COLOR : GOOD_FEEDBACK_COLOR,
             alpha: 0.75,
           }
         );
@@ -92,28 +101,23 @@ export default class GuruSchema {
           }
 
           if (repIndex >= 0) {
-            const rep = this.reps[repIndex];
-            const repAlpha =
-              1.0 -
-              Math.abs(rep.middleFrame.timestamp - frameCanvas.timestamp) /
-                (rep.endFrame.timestamp - rep.startFrame.timestamp);
-            const hipKneeAngle = Math.round(this.hipKneeAngles[repIndex]);
-            const elbowShoulderAngle = Math.round(
-              this.elbowShoulderAngle[repIndex]
-            );
-            const badForm = elbowShoulderAngle > 2;
-
-            const repDescription = badForm ? "Bad rep! Go lower!" : "Good rep!";
+            const repAnalysis = this.repsAnalysis[repIndex];
+            const repText = `Rep ${repIndex + 1}
+            Depth: ${repAnalysis.repDepthDegrees < 0 ? "✅" : "❌"} ${
+              repAnalysis.repDepthDegrees
+            }°
+            Lockout: ${repAnalysis.repLockOutDegrees < 180 ? "✅" : "❌"} ${
+              repAnalysis.repLockOutDegrees
+            }°
+            `;
 
             frameCanvas.drawText(
-              `Rep ${repIndex + 1} -- ${repDescription}`,
+              repText,
               new Position(0.1, 0.1),
               new Color(255, 255, 255),
               {
-                fontSize: 26,
-                backgroundColor: badForm
-                  ? new Color(232, 92, 92)
-                  : new Color(94, 49, 255),
+                fontSize: 18,
+                backgroundColor: new Color(94, 49, 255),
                 padding: 4,
               }
             );
@@ -125,8 +129,7 @@ export default class GuruSchema {
 
   async outputs() {
     return {
-      reps: this.reps,
-      hipKneeAngles: this.hipKneeAngles,
+      repsAnalysis: this.repsAnalysis,
     };
   }
 }
