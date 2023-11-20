@@ -22,33 +22,22 @@ export default class GuruSchema {
     );
 
     const repHitsDepth = (rep) => {
-      return MovementAnalyzer.angleBetweenKeypoints(
-        rep.middleFrame,
-        Keypoint.leftElbow,
-        Keypoint.leftShoulder
-      ) < 0;
+      return (
+        MovementAnalyzer.angleBetweenKeypoints(
+          rep.middleFrame,
+          Keypoint.leftElbow,
+          Keypoint.leftShoulder
+        ) < 0
+      );
     };
 
     this.repsAnalysis = this.reps.map((rep) => ({
       hitsDepth: repHitsDepth(rep),
-      locksOut: true
+      locksOut: true,
     }));
-    
 
     return this.outputs();
   }
-
-  // const hitsDepth = (person) => {
-  //   const elbowLocation = person.keypoints[Keypoint.leftElbow];
-  //   const shoulderLocation = person.keypoints[Keypoint.leftShoulder];
-  //   const elbowShoulderAngle = MovementAnalyzer.angleBetweenKeypoints(
-  //     person,
-  //     Keypoint.leftElbow,
-  //     Keypoint.leftShoulder
-  //   );
-
-  //   return elbowShoulderAngle > 0;
-  // }
 
   renderFrame(frameCanvas) {
     if (this.personFrames.length > 0) {
@@ -101,29 +90,21 @@ export default class GuruSchema {
           }
 
           if (repIndex >= 0) {
-            const rep = this.reps[repIndex];
-            const repAlpha =
-              1.0 -
-              Math.abs(rep.middleFrame.timestamp - frameCanvas.timestamp) /
-                (rep.endFrame.timestamp - rep.startFrame.timestamp);
-
-            const elbowShoulderAngle = Math.round(
-              this.elbowShoulderAngle[repIndex]
-            );
-
-            const badForm = elbowShoulderAngle > 2;
-
-            const repDescription = badForm ? "Bad rep! Go lower!" : "Good rep!";
+            const repText = `Rep ${repIndex + 1}
+            Depth: ${this.repsAnalysis[repIndex].hitsDepth ? "✅" : "❌"}
+            Lockout: ${this.repsAnalysis[repIndex].locksOut ? "✅" : "❌"}
+            `;
 
             frameCanvas.drawText(
-              `Rep ${repIndex + 1} -- ${repDescription}`,
+              repText,
               new Position(0.1, 0.1),
               new Color(255, 255, 255),
               {
                 fontSize: 26,
-                backgroundColor: badForm
-                  ? new Color(232, 92, 92)
-                  : new Color(94, 49, 255),
+                backgroundColor: new Color(232, 92, 92),
+                // backgroundColor: badForm
+                //   ? new Color(232, 92, 92)
+                //   : new Color(94, 49, 255),
                 padding: 4,
               }
             );
@@ -135,7 +116,7 @@ export default class GuruSchema {
 
   async outputs() {
     return {
-      repsAnalysis: this.repsAnalysis
+      repsAnalysis: this.repsAnalysis,
     };
   }
 }
