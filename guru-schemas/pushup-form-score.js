@@ -21,19 +21,29 @@ export default class GuruSchema {
       { threshold: 0.1 }
     );
 
-    const repHitsDepth = (rep) => {
-      return (
-        MovementAnalyzer.angleBetweenKeypoints(
-          rep.middleFrame,
-          Keypoint.leftElbow,
-          Keypoint.leftShoulder
-        ) < 0
+    const repDepthDegrees = (rep) => {
+      const angle = MovementAnalyzer.angleBetweenKeypoints(
+        rep.middleFrame,
+        Keypoint.leftElbow,
+        Keypoint.leftShoulder
       );
+
+      return Number(angle.toFixed(1));
+    };
+
+    const repLockoutDegrees = (rep) => {
+      const angle = MovementAnalyzer.angleBetweenKeypoints(
+        rep.endFrame,
+        Keypoint.leftElbow,
+        Keypoint.leftWrist
+      );
+
+      return Number(angle.toFixed(1));
     };
 
     this.repsAnalysis = this.reps.map((rep) => ({
-      hitsDepth: repHitsDepth(rep),
-      locksOut: true,
+      repDepthDegrees: repDepthDegrees(rep),
+      repLockOutDegrees: repLockoutDegrees(rep),
     }));
 
     return this.outputs();
@@ -61,15 +71,16 @@ export default class GuruSchema {
           Keypoint.leftShoulder
         );
 
+        const GOOD_FEEDBACK_COLOR = new Color(93, 236, 201);
+        const BAD_FEEDBACK_COLOR = new Color(232, 92, 92);
+
         frameCanvas.drawTriangle(
           elbowLocation,
           shoulderLocation,
           new Position(elbowLocation.x, shoulderLocation.y),
           {
             backgroundColor:
-              elbowShoulderAngle > 0
-                ? new Color(232, 92, 92)
-                : new Color(93, 236, 201),
+              elbowShoulderAngle > 0 ? BAD_FEEDBACK_COLOR : GOOD_FEEDBACK_COLOR,
             alpha: 0.75,
           }
         );
@@ -90,9 +101,14 @@ export default class GuruSchema {
           }
 
           if (repIndex >= 0) {
+            const repAnalysis = this.repsAnalysis[repIndex];
             const repText = `Rep ${repIndex + 1}
-            Depth: ${this.repsAnalysis[repIndex].hitsDepth ? "✅" : "❌"}
-            Lockout: ${this.repsAnalysis[repIndex].locksOut ? "✅" : "❌"}
+            Depth: ${repAnalysis.repDepthDegrees < 0 ? "✅" : "❌"} ${
+              repAnalysis.repDepthDegrees
+            }°
+            Lockout: ${repAnalysis.repLockOutDegrees < 180 ? "✅" : "❌"} ${
+              repAnalysis.repLockOutDegrees
+            }°
             `;
 
             frameCanvas.drawText(
@@ -100,11 +116,8 @@ export default class GuruSchema {
               new Position(0.1, 0.1),
               new Color(255, 255, 255),
               {
-                fontSize: 26,
-                backgroundColor: new Color(232, 92, 92),
-                // backgroundColor: badForm
-                //   ? new Color(232, 92, 92)
-                //   : new Color(94, 49, 255),
+                fontSize: 18,
+                backgroundColor: new Color(94, 49, 255),
                 padding: 4,
               }
             );
